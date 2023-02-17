@@ -1,0 +1,45 @@
+name: Ango - Reusable PR Workflow
+
+on:
+  workflow_call:
+    inputs:
+      py-module:
+        description: Python module that needs to be exported
+        required: true
+        type: string
+
+      python-version:
+        description: Python version to be used for the build
+        required: true
+        default: 3.10.9
+        type: string
+
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+
+jobs:
+  check-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout '${{ github.repository }}'
+        uses: actions/checkout@v3
+
+      - name: Set up Python '${{ inputs.python-version }}'
+        uses: actions/setup-python@v4
+        with:
+          python-version: '${{ inputs.python-version }}'
+
+      - name: Installing Dependencies
+        shell: bash
+        run: |
+          pip install poetry
+          poetry export -f requirements.txt --with dev | pip install -r /dev/stdin
+
+      - name: Formatting & Linting
+        shell: bash
+        run: |
+          python -m black '${{ inputs.py-module }}' --check --verbose
+          python -m isort '${{ inputs.py-module }}' --check --verbose
